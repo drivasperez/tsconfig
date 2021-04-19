@@ -1,5 +1,18 @@
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::{collections::BTreeMap as Map, error::Error};
+
+use json_comments::StripComments;
+use serde::{
+    de::{self, DeserializeOwned},
+    Deserialize, Deserializer, Serialize,
+};
 use serde_json::Value;
+
+pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
+    let stripped = StripComments::new(json.as_bytes());
+    let r: TsConfig = serde_json::from_reader(stripped)?;
+    Ok(r)
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
@@ -118,7 +131,7 @@ pub struct CompilerOptions {
     /// If specified, all global (non-module) files will be concatenated into the single output file specified.
     out_file: Option<String>,
     /// List of language service plugins to run inside the editor.
-    plugins: Option<Vec<Value>>,
+    // plugins: Option<Vec<Value>>,
     /// Strips all comments from TypeScript files when converting into JavaScript.
     remove_comments: Option<bool>,
     /// Default: The longest common path of all non-declaration input files.
@@ -153,6 +166,86 @@ pub struct CompilerOptions {
     /// When strictNullChecks is `true`, `null` and `undefined` have their own distinct types and you’ll
     /// get a type error if you try to use them where a concrete value is expected.
     strict_null_checks: Option<bool>,
+    /// When set to true, TypeScript will raise an error when a class property was declared but not set in the constructor.
+    strict_property_initialization: Option<bool>,
+    /// When set to true, allowSyntheticDefaultImports allows you to write an import like:
+    ///
+    /// ```ts
+    /// import React from "react";
+    /// ```
+    ///
+    /// instead of:
+    /// ```ts
+    /// import * as React from "react";
+    /// ```
+    allow_synthetic_default_imports: Option<bool>,
+    /// When set to true, allowUmdGlobalAccess lets you access UMD exports as globals from inside module files.
+    /// A module file is a file that has imports and/or exports. Without this flag, using an export from a UMD
+    /// module requires an import declaration.
+    ///
+    /// An example use case for this flag would be a web project where you know the particular library (like
+    /// jQuery or Lodash) will always be available at runtime, but you can’t access it with an import.
+    allow_umd_global_access: Option<bool>,
+    /// Lets you set a base directory to resolve non-absolute module names.
+    base_url: Option<bool>,
+    es_module_interop: Option<bool>,
+    /// Specify the module resolution strategy: `'node'` (Node.js) or `'classic'` (used in TypeScript before
+    /// the release of 1.6). You probably won’t need to use classic in modern code.
+    module_resolution: Option<ModuleResolutionMode>,
+    /// A series of entries which re-map imports to lookup locations relative to the baseUrl, there is a
+    /// larger coverage of paths in the handbook.
+    paths: Option<HashMap<String, Vec<String>>>,
+    preserve_symlinks: Option<bool>,
+    /// Using rootDirs, you can inform the compiler that there are many “virtual” directories acting as a single root.
+    /// This allows the compiler to resolve relative module imports within these “virtual” directories, as if they
+    /// were merged in to one directory.
+    root_dirs: Option<Vec<String>>,
+    /// By default all visible ”@types” packages are included in your compilation. Packages in `node_modules/@types`
+    /// of any enclosing folder are considered visible. For example, that means packages within
+    /// `./node_modules/@types/`, `../node_modules/@types/`, `../../node_modules/@types/`, and so on.
+    ///
+    /// If `typeRoots` is specified, only packages under `typeRoots` will be included.
+    type_roots: Option<Vec<String>>,
+    /// By default all visible ”@types” packages are included in your compilation. Packages in `node_modules/@types`
+    /// of any enclosing folder are considered visible. For example, that means packages within
+    /// `./node_modules/@types/`, `../node_modules/@types/`, `../../node_modules/@types/`, and so on.
+    ///
+    /// If `types` is specified, only the packages listed will be included in the global scope.
+    types: Option<Vec<String>>,
+    /// When set, instead of writing out a .js.map file to provide source maps, TypeScript will embed the
+    /// source map content in the .js files. Although this results in larger JS files, it can be convenient
+    /// in some scenarios. For example, you might want to debug JS files on a webserver that doesn’t allow
+    /// `.map` files to be served.
+    ///
+    /// Mutually exclusive with `source_map`.
+    inline_source_map: Option<bool>,
+    /// When set, TypeScript will include the original content of the .ts file as an embedded string in
+    /// the source map. This is often useful in the same cases as inlineSourceMap.
+    ///
+    /// Requires either sourceMap or inlineSourceMap to be set.
+    inline_sources: Option<bool>,
+    /// Specify the location where debugger should locate map files instead of generated locations.
+    map_root: Option<String>,
+    /// Specify the location where a debugger should locate TypeScript files instead of relative source locations.
+    source_root: Option<String>,
+    /// Report errors for fallthrough cases in switch statements. Ensures that any non-empty case inside
+    /// a switch statement includes either break or return. This means you won’t accidentally ship a case
+    /// fallthrough bug.
+    no_fallthrough_cases_in_switch: Option<bool>,
+    /// When enabled, TypeScript will check all code paths in a function to ensure they return a value.
+    no_implicit_returns: Option<bool>,
+    /// This setting ensures consistency between accessing a field via the “dot” (obj.key) syntax, and “indexed” (obj["key"]) and the way which the property is declared in the type.
+    ///
+    /// Without this flag, TypeScript will allow you to use the dot syntax to access fields which are not defined
+    no_property_access_from_index_signature: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+pub enum ModuleResolutionMode {
+    #[serde(rename = "node")]
+    Node,
+    #[serde(rename = "classic")]
+    Classic,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
@@ -164,29 +257,43 @@ pub enum Jsx {
     ReactNative,
     Preserve,
 }
+
+fn case_insensitive<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: DeserializeOwned,
+    D: Deserializer<'de>,
+{
+    let map = Map::<String, Value>::deserialize(deserializer)?;
+    let lower = map
+        .into_iter()
+        .map(|(k, v)| (k.to_lowercase(), v))
+        .collect();
+    T::deserialize(Value::Object(lower)).map_err(de::Error::custom)
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
 pub enum Target {
-    #[serde(rename = "ES53")]
+    #[serde(rename = "ES53", deserialize_with = "case_insensitive")]
     Es3,
-    #[serde(rename = "ES5")]
+    #[serde(rename = "ES5", deserialize_with = "case_insensitive")]
     Es5,
-    #[serde(rename = "ES2015")]
+    #[serde(rename = "ES2015", deserialize_with = "case_insensitive")]
     Es2015,
-    #[serde(rename = "ES6")]
+    #[serde(rename = "ES6", deserialize_with = "case_insensitive")]
     Es6,
-    #[serde(rename = "ES2016")]
+    #[serde(rename = "ES2016", deserialize_with = "case_insensitive")]
     Es2016,
-    #[serde(rename = "ES7")]
+    #[serde(rename = "ES7", deserialize_with = "case_insensitive")]
     Es7,
-    #[serde(rename = "ES2017")]
+    #[serde(rename = "ES2017", deserialize_with = "case_insensitive")]
     Es2017,
-    #[serde(rename = "ES2018")]
+    #[serde(rename = "ES2018", deserialize_with = "case_insensitive")]
     Es2018,
-    #[serde(rename = "ES2019")]
+    #[serde(rename = "ES2019", deserialize_with = "case_insensitive")]
     Es2019,
-    #[serde(rename = "ES2020")]
+    #[serde(rename = "ES2020", deserialize_with = "case_insensitive")]
     Es2020,
-    #[serde(rename = "ESNext")]
+    #[serde(rename = "ESNext", deserialize_with = "case_insensitive")]
     EsNext,
 }
 
@@ -301,7 +408,45 @@ mod test {
     fn parse_jsx() {
         let json = r#"{"compilerOptions": {"jsx": "react-jsx"}}"#;
 
-        let config: TsConfig = serde_json::from_str(json).unwrap();
+        let config: TsConfig = parse_str(json).unwrap();
         assert_eq!(config.compiler_options.unwrap().jsx, Some(Jsx::ReactJsx));
+    }
+
+    #[test]
+    fn parse_paths() {
+        let json = r#"{
+        "compilerOptions": {
+            "baseUrl": "src",
+            "paths": {
+                "tests/*": ["tests/*"],
+                "blah": ["bloop"]
+            }
+        }
+    }
+        
+        "#;
+
+        let config: TsConfig = parse_str(json).unwrap();
+        assert_eq!(
+            config
+                .compiler_options
+                .unwrap()
+                .paths
+                .unwrap()
+                .get("tests/*"),
+            Some(&vec!["tests/*".to_string()])
+        );
+    }
+
+    #[test]
+    fn parse_empty() {
+        let _: TsConfig = parse_str("{}").unwrap();
+        let _: TsConfig = parse_str(r#"{"compilerOptions": {}}"#).unwrap();
+    }
+
+    #[test]
+    fn parse_default() {
+        let json = include_str!("../test/default_tsconfig.json");
+        let _: TsConfig = parse_str(json).unwrap();
     }
 }
