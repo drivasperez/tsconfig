@@ -1,33 +1,33 @@
 use std::collections::HashMap;
-use std::{collections::BTreeMap as Map, error::Error};
+use std::error::Error;
 
 use json_comments::StripComments;
-use serde::{
-    de::{self, DeserializeOwned},
-    Deserialize, Deserializer, Serialize,
-};
-use serde_json::Value;
+use regex::Regex;
+use serde::{de, Deserialize, Deserializer};
 
 pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
+    // Remove trailing commas from objects.
+    let re = Regex::new(r",(?P<valid>\s*})").unwrap();
+    let json = re.replace_all(json, "$valid");
     let stripped = StripComments::new(json.as_bytes());
     let r: TsConfig = serde_json::from_reader(stripped)?;
     Ok(r)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub enum References {
     Bool(bool),
     References(Vec<Reference>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Reference {
     path: String,
     prepend: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub enum TypeAcquisition {
     Bool(bool),
     Object {
@@ -38,7 +38,7 @@ pub enum TypeAcquisition {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     /// Specifies an array of filenames or patterns that should be skipped when resolving include.
@@ -61,7 +61,7 @@ pub struct TsConfig {
 }
 
 /// These options make up the bulk of TypeScript’s configuration and it covers how the language should work.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct CompilerOptions {
     /// Allow JavaScript files to be imported inside your project, instead of just .ts and .tsx files.
     allow_js: Option<bool>,
@@ -117,7 +117,7 @@ pub struct CompilerOptions {
     /// - You have polyfills or native implementations for some, but not all, of a higher level ECMAScript version
     lib: Option<Vec<Lib>>,
     /// Sets the module system for the program. You very likely want "CommonJS" for node projects.
-    module: Option<Vec<Module>>,
+    module: Option<Module>,
     /// Do not emit compiler output files like JavaScript source code, source-maps or declarations.
     ///
     /// This makes room for another tool like Babel, or swc to handle converting the TypeScript file to a file which can run inside a JavaScript environment.
@@ -240,7 +240,7 @@ pub struct CompilerOptions {
     no_property_access_from_index_signature: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
 pub enum ModuleResolutionMode {
     #[serde(rename = "node")]
     Node,
@@ -248,7 +248,7 @@ pub enum ModuleResolutionMode {
     Classic,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub enum Jsx {
     React,
@@ -258,147 +258,199 @@ pub enum Jsx {
     Preserve,
 }
 
-fn case_insensitive<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    T: DeserializeOwned,
-    D: Deserializer<'de>,
-{
-    let map = Map::<String, Value>::deserialize(deserializer)?;
-    let lower = map
-        .into_iter()
-        .map(|(k, v)| (k.to_lowercase(), v))
-        .collect();
-    T::deserialize(Value::Object(lower)).map_err(de::Error::custom)
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Target {
-    #[serde(rename = "ES53", deserialize_with = "case_insensitive")]
     Es3,
-    #[serde(rename = "ES5", deserialize_with = "case_insensitive")]
     Es5,
-    #[serde(rename = "ES2015", deserialize_with = "case_insensitive")]
     Es2015,
-    #[serde(rename = "ES6", deserialize_with = "case_insensitive")]
     Es6,
-    #[serde(rename = "ES2016", deserialize_with = "case_insensitive")]
     Es2016,
-    #[serde(rename = "ES7", deserialize_with = "case_insensitive")]
     Es7,
-    #[serde(rename = "ES2017", deserialize_with = "case_insensitive")]
     Es2017,
-    #[serde(rename = "ES2018", deserialize_with = "case_insensitive")]
     Es2018,
-    #[serde(rename = "ES2019", deserialize_with = "case_insensitive")]
     Es2019,
-    #[serde(rename = "ES2020", deserialize_with = "case_insensitive")]
     Es2020,
-    #[serde(rename = "ESNext", deserialize_with = "case_insensitive")]
     EsNext,
 }
+impl<'de> Deserialize<'de> for Target {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let s = s.to_uppercase();
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
+        let d = match s.as_str() {
+            "ES5" => Target::Es5,
+            "ES2015" => Target::Es2015,
+            "ES6" => Target::Es6,
+            "ES2016" => Target::Es2016,
+            "ES7" => Target::Es7,
+            "ES2017" => Target::Es2017,
+            "ES2018" => Target::Es2018,
+            "ES2019" => Target::Es2019,
+            "ES2020" => Target::Es2020,
+            "ESNEXT" => Target::EsNext,
+            other => {
+                return Err(de::Error::invalid_value(
+                    de::Unexpected::Other(other),
+                    &"valid target type",
+                ))
+            }
+        };
+
+        Ok(d)
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Lib {
-    #[serde(rename = "ES5")]
     Es5,
-    #[serde(rename = "ES2015")]
     Es2015,
-    #[serde(rename = "ES6")]
     Es6,
-    #[serde(rename = "ES2016")]
     Es2016,
-    #[serde(rename = "ES7")]
     Es7,
-    #[serde(rename = "ES2017")]
     Es2017,
-    #[serde(rename = "ES2018")]
     Es2018,
-    #[serde(rename = "ES2019")]
     Es2019,
-    #[serde(rename = "ES2020")]
     Es2020,
-    #[serde(rename = "ESNext")]
     EsNext,
-    #[serde(rename = "DOM")]
     Dom,
     WebWorker,
     ScriptHost,
-    #[serde(rename = "DOM.Iterable")]
     DomIterable,
-    #[serde(rename = "ES2015.Core")]
     Es2015Core,
-    #[serde(rename = "ES2015.Generator")]
     Es2015Generator,
-    #[serde(rename = "ES2015.Iterable")]
     Es2015Iterable,
-    #[serde(rename = "ES2015.Promise")]
     Es2015Promise,
-    #[serde(rename = "ES2015.Proxy")]
     Es2015Proxy,
-    #[serde(rename = "ES2015.Reflect")]
     Es2015Reflect,
-    #[serde(rename = "ES2015.Symbol")]
     Es2015Symbol,
-    #[serde(rename = "ES2015.Symbol.WellKnown")]
     Es2015SymbolWellKnown,
-    #[serde(rename = "ES2015.Array.Include")]
     Es2016ArrayInclude,
-    #[serde(rename = "ES2015.object")]
     Es2017Object,
-    #[serde(rename = "ES2017Intl")]
     Es2017Intl,
-    #[serde(rename = "ES2015.SharedMemory")]
     Es2017SharedMemory,
-    #[serde(rename = "ES2017.String")]
     Es2017String,
-    #[serde(rename = "ES2017.TypedArrays")]
     Es2017TypedArrays,
-    #[serde(rename = "ES2018.Intl")]
     Es2018Intl,
-    #[serde(rename = "ES2018.Promise")]
     Es2018Promise,
-    #[serde(rename = "ES2018.RegExp")]
     Es2018RegExp,
-    #[serde(rename = "ES2019.Array")]
     Es2019Array,
-    #[serde(rename = "ES2019.Object")]
     Es2019Object,
-    #[serde(rename = "ES2019.String")]
     Es2019String,
-    #[serde(rename = "ES2019.Symbol")]
     Es2019Symbol,
-    #[serde(rename = "ES2020.String")]
     Es2020String,
-    #[serde(rename = "ES2020.Symbol.wellknown")]
     Es2020SymbolWellknown,
-    #[serde(rename = "ESNext.AsyncIterable")]
     EsNextAsyncIterable,
-    #[serde(rename = "ESNext.Array")]
     EsNextArray,
-    #[serde(rename = "ESNext.Intl")]
     EsNextIntl,
-    #[serde(rename = "ESNext.Symbol")]
     EsNextSymbol,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+impl<'de> Deserialize<'de> for Lib {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let s = s.to_uppercase();
+
+        let d = match s.as_str() {
+            "ES5" => Lib::Es5,
+            "ES2015" => Lib::Es2015,
+            "ES6" => Lib::Es6,
+            "ES2016" => Lib::Es2016,
+            "ES7" => Lib::Es7,
+            "ES2017" => Lib::Es2017,
+            "ES2018" => Lib::Es2018,
+            "ES2019" => Lib::Es2019,
+            "ES2020" => Lib::Es2020,
+            "ESNext" => Lib::EsNext,
+            "DOM" => Lib::Dom,
+            "WEBWORKER" => Lib::WebWorker,
+            "SCRIPTHOST" => Lib::ScriptHost,
+            "DOM.ITERABLE" => Lib::DomIterable,
+            "ES2015.CORE" => Lib::Es2015Core,
+            "ES2015.GENERATOR" => Lib::Es2015Generator,
+            "ES2015.ITERABLE" => Lib::Es2015Iterable,
+            "ES2015.PROMISE" => Lib::Es2015Promise,
+            "ES2015.PROXY" => Lib::Es2015Proxy,
+            "ES2015.REFLECT" => Lib::Es2015Reflect,
+            "ES2015.SYMBOL" => Lib::Es2015Symbol,
+            "ES2015.SYMBOL.WELLKNOWN" => Lib::Es2015SymbolWellKnown,
+            "ES2015.ARRAY.INCLUDE" => Lib::Es2016ArrayInclude,
+            "ES2015.OBJECT" => Lib::Es2017Object,
+            "ES2017INTL" => Lib::Es2017Intl,
+            "ES2015.SHAREDMEMORY" => Lib::Es2017SharedMemory,
+            "ES2017.STRING" => Lib::Es2017String,
+            "ES2017.TYPEDARRAYS" => Lib::Es2017TypedArrays,
+            "ES2018.INTL" => Lib::Es2018Intl,
+            "ES2018.PROMISE" => Lib::Es2018Promise,
+            "ES2018.REGEXP" => Lib::Es2018RegExp,
+            "ES2019.ARRAY" => Lib::Es2019Array,
+            "ES2019.OBJECT" => Lib::Es2019Object,
+            "ES2019.STRING" => Lib::Es2019String,
+            "ES2019.SYMBOL" => Lib::Es2019Symbol,
+            "ES2020.STRING" => Lib::Es2020String,
+            "ES2020.SYMBOL.WELLKNOWN" => Lib::Es2020SymbolWellknown,
+            "ESNEXT.ASYNCITERABLE" => Lib::EsNextAsyncIterable,
+            "ESNEXT.ARRAY" => Lib::EsNextArray,
+            "ESNEXT.INTL" => Lib::EsNextIntl,
+            "ESNEXT.SYMBOL" => Lib::EsNextSymbol,
+            other => {
+                return Err(de::Error::invalid_value(
+                    de::Unexpected::Other(other),
+                    &"valid library type",
+                ))
+            }
+        };
+
+        Ok(d)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Module {
-    #[serde(rename = "CommonJS")]
     CommonJs,
-    #[serde(rename = "ES6")]
     Es6,
-    #[serde(rename = "ES2015")]
     Es2015,
-    #[serde(rename = "ES2020")]
     Es2020,
     None,
-    #[serde(rename = "UMD")]
     Umd,
-    #[serde(rename = "AMD")]
     Amd,
     System,
-    #[serde(rename = "ESNext")]
     EsNext,
+}
+
+impl<'de> Deserialize<'de> for Module {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let s = s.to_uppercase();
+
+        let r = match s.as_str() {
+            "COMMONJS" => Module::CommonJs,
+            "ESNEXT" => Module::EsNext,
+            "ES6" => Module::Es6,
+            "ES2015" => Module::Es2015,
+            "ES2020" => Module::Es2020,
+            "NONE" => Module::None,
+            "UMD" => Module::Umd,
+            "AMD" => Module::Amd,
+            "SYSTEM" => Module::System,
+            other => {
+                return Err(de::Error::invalid_value(
+                    de::Unexpected::Other(other),
+                    &"valid module type",
+                ))
+            }
+        };
+
+        Ok(r)
+    }
 }
 
 #[cfg(test)]
