@@ -177,7 +177,7 @@ pub enum Jsx {
     Preserve,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Target {
     Es3,
     Es5,
@@ -190,6 +190,7 @@ pub enum Target {
     Es2019,
     Es2020,
     EsNext,
+    Other(String),
 }
 impl<'de> Deserialize<'de> for Target {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -210,19 +211,14 @@ impl<'de> Deserialize<'de> for Target {
             "ES2019" => Target::Es2019,
             "ES2020" => Target::Es2020,
             "ESNEXT" => Target::EsNext,
-            other => {
-                return Err(de::Error::invalid_value(
-                    de::Unexpected::Other(other),
-                    &"valid target type",
-                ))
-            }
+            other => Target::Other(other.to_string()),
         };
 
         Ok(d)
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Lib {
     Es5,
     Es2015,
@@ -265,6 +261,7 @@ pub enum Lib {
     EsNextArray,
     EsNextIntl,
     EsNextSymbol,
+    Other(String),
 }
 
 impl<'de> Deserialize<'de> for Lib {
@@ -317,19 +314,14 @@ impl<'de> Deserialize<'de> for Lib {
             "ESNEXT.ARRAY" => Lib::EsNextArray,
             "ESNEXT.INTL" => Lib::EsNextIntl,
             "ESNEXT.SYMBOL" => Lib::EsNextSymbol,
-            other => {
-                return Err(de::Error::invalid_value(
-                    de::Unexpected::Other(other),
-                    &"valid library type",
-                ))
-            }
+            other => Lib::Other(other.to_string()),
         };
 
         Ok(d)
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Module {
     CommonJs,
     Es6,
@@ -340,6 +332,7 @@ pub enum Module {
     Amd,
     System,
     EsNext,
+    Other(String),
 }
 
 impl<'de> Deserialize<'de> for Module {
@@ -360,12 +353,7 @@ impl<'de> Deserialize<'de> for Module {
             "UMD" => Module::Umd,
             "AMD" => Module::Amd,
             "SYSTEM" => Module::System,
-            other => {
-                return Err(de::Error::invalid_value(
-                    de::Unexpected::Other(other),
-                    &"valid module type",
-                ))
-            }
+            other => Module::Other(other.to_string()),
         };
 
         Ok(r)
