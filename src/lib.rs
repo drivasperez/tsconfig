@@ -323,6 +323,86 @@ pub struct CompilerOptions {
     ///
     /// You can learn more about how to measure and understand the output in the performance section of the wiki.
     extended_diagnostics: Option<bool>,
+    /// TypeScript follows the case sensitivity rules of the file system it’s running on. This can be problematic
+    /// if some developers are working in a case-sensitive file system and others aren’t. If a file attempts to import
+    /// fileManager.ts by specifying ./FileManager.ts the file will be found in a case-insensitive file system,
+    /// but not on a case-sensitive file system.
+    ///
+    /// When this option is set, TypeScript will issue an error if a program tries to include a file by a casing
+    /// different from the casing on disk.
+    force_consistent_casing_in_file_names: Option<bool>,
+    /// This option gives you the chance to have TypeScript emit a v8 CPU profile during the compiler run.
+    /// The CPU profile can provide insight into why your builds may be slow.
+    // XXX: Is generateCpuProfile available from tsconfig? Or just the CLI?
+    generate_cpu_profile: Option<bool>,
+
+    /// This flag controls how import works, there are 3 different options:
+    ///
+    ///     - remove: The default behavior of dropping import statements which only reference types.
+    ///     - preserve: Preserves all import statements whose values or types are never used.
+    ///       This can cause imports/side-effects to be preserved.
+    ///     - error: This preserves all imports (the same as the preserve option), but will error when
+    ///       a value import is only used as a type. This might be useful if you want to ensure no values
+    ///       are being accidentally imported, but still make side-effect imports explicit.
+    ///
+    /// This flag works because you can use import type to explicitly create an import statement
+    /// which should never be emitted into JavaScript.
+    imports_not_used_as_values: Option<String>,
+    /// Changes the function called in .js files when compiling JSX Elements using the classic JSX runtime.
+    /// The most common change is to use "h" or "preact.h" instead of the default "React.createElement" if using preact.
+    jsx_factory: Option<String>,
+    // Specify the JSX fragment factory function to use when targeting react JSX emit with jsxFactory compiler option
+    /// is specified, e.g. Fragment.
+    jsx_fragment_factory: Option<String>,
+    /// Declares the module specifier to be used for importing the jsx and jsxs factory functions when using jsx
+    /// as "react-jsx" or "react-jsxdev" which were introduced in TypeScript 4.1.
+    /// With React 17 the library supports a new form of JSX transformation via a separate import.
+    jsx_import_source: Option<String>,
+
+    #[deprecated]
+    /// This flag changes the keyof type operator to return string instead of string | number when
+    /// applied to a type with a string index signature.
+    keyof_strings_only: Option<bool>,
+    /// Print names of generated files part of the compilation to the terminal.
+    list_emitted_files: Option<bool>,
+    /// Print names of files part of the compilation. This is useful when you are not sure that
+    /// TypeScript has included a file you expected.
+    list_files: Option<bool>,
+    /// The maximum dependency depth to search under node_modules and load JavaScript files.
+    max_node_module_js_depth: Option<u32>,
+    /// Instead of importing helpers with importHelpers, you can provide implementations in the global scope for
+    /// the helpers you use and completely turn off emitting of helper functions.
+    no_emit_helpers: Option<bool>,
+    /// Do not emit compiler output files like JavaScript source code, source-maps or declarations if any errors
+    /// were reported.
+    ///
+    /// This defaults to false, making it easier to work with TypeScript in a watch-like environment where you may
+    /// want to see results of changes to your code in another environment before making sure all errors are resolved.
+    no_emit_on_error: Option<bool>,
+    /// Do not truncate error messages.
+    no_error_truncation: Option<bool>,
+    /// You shouldn’t need this. By default, when emitting a module file to a non-ES6 target, TypeScript emits a
+    /// "use strict"; prologue at the top of the file. This setting disables the prologue.
+    no_implicit_use_strict: Option<bool>,
+    /// Disables the automatic inclusion of any library files. If this option is set, lib is ignored.
+    ///
+    /// TypeScript cannot compile anything without a set of interfaces for key primitives like: Array, Boolean, Function,
+    /// IArguments, Number, Object, RegExp, and String. It is expected that if you use noLib you will be including
+    /// your own type definitions for these.
+    no_lib: Option<bool>,
+    /// By default, TypeScript will examine the initial set of files for import and <reference directives and add these
+    /// resolved files to your program.
+    ///
+    /// If noResolve is set, this process doesn’t happen. However, import statements are still checked to see if they
+    /// resolve to a valid module, so you’ll need to make sure this is satisfied by some other means.
+    no_resolve: Option<bool>,
+    /// TypeScript will unify type parameters when comparing two generic functions.
+    no_strict_generic_checks: Option<bool>,
+    /// Use outFile instead.
+    ///
+    /// The out option computes the final file location in a way that is not predictable or consistent. This option is retained for backward compatibility only and is deprecated.
+    #[deprecated]
+    out: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
