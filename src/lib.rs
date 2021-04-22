@@ -238,6 +238,91 @@ pub struct CompilerOptions {
     ///
     /// Without this flag, TypeScript will allow you to use the dot syntax to access fields which are not defined
     no_property_access_from_index_signature: Option<bool>,
+    /// TypeScript has a way to describe objects which have unknown keys but known values on an object, via index signatures.
+    /// Turning on noUncheckedIndexedAccess will add undefined to any un-declared field in the type.
+    no_unchecked_indexed_access: Option<bool>,
+    /// Report errors on unused local variables.
+    no_unused_locals: Option<bool>,
+    /// Enables experimental support for emitting type metadata for decorators which works with the module reflect-metadata.
+    emit_decorator_metadata: Option<bool>,
+    /// Enables experimental support for decorators, which is in stage 2 of the TC39 standardization process.
+    ///
+    /// Decorators are a language feature which hasn’t yet been fully ratified into the JavaScript specification.
+    /// This means that the implementation version in TypeScript may differ from the implementation in JavaScript
+    /// when it it decided by TC39.
+    experimental_decorators: Option<bool>,
+    /// When:
+    ///
+    ///     - `undefined` (default) provide suggestions as warnings to editors
+    ///     - `true` unreachable code is ignored
+    ///     - `false` raises compiler errors about unreachable code
+    ///
+    /// These warnings are only about code which is provably unreachable due to the use of JavaScript syntax.
+    allow_unreachable_code: Option<bool>,
+    /// Set to false to disable warnings about unused labels.
+    ///
+    /// Labels are very rare in JavaScript and typically indicate an attempt to write an object literal
+    allow_unused_labels: Option<bool>,
+    /// When this option is enabled, TypeScript will avoid rechecking/rebuilding all truly possibly-affected files,
+    /// and only recheck/rebuild files that have changed as well as files that directly import them.
+    ///
+    /// This can be considered a ‘fast & loose’ implementation of the watching algorithm, which can drastically
+    /// reduce incremental rebuild times at the expense of having to run the full build occasionally
+    /// to get all compiler error messages.
+    assume_changes_only_affect_direct_dependencies: Option<bool>,
+    /// In prior versions of TypeScript, this controlled what encoding was used when reading text files from disk.
+    /// Today, TypeScript assumes UTF-8 encoding, but will correctly detect UTF-16 (BE and LE) or UTF-8 BOMs.
+    #[deprecated]
+    charset: Option<String>,
+    /// Offers a way to configure the root directory for where declaration files are emitted.
+    declaration_dir: Option<String>,
+    /// Used to output diagnostic information for debugging. This command is a subset of extendedDiagnostics
+    /// which are more user-facing results, and easier to interpret.
+    ///
+    /// If you have been asked by a TypeScript compiler engineer to give the results using this flag in a
+    /// compile, in which there is no harm in using --extendedDiagnostics instead.
+    #[deprecated]
+    diagnostics: Option<bool>,
+    /// In multi-project TypeScript programs, TypeScript will load all of the available projects into memory
+    /// in order to provide accurate results for editor responses which require a full knowledge graph like
+    /// ‘Find All References’.
+    ///
+    /// If your project is large, you can use the flag disableReferencedProjectLoad to disable the automatic
+    /// loading of all projects. Instead, projects are loaded dynamically as you open files through your editor.
+    disable_referenced_project_load: Option<bool>,
+    /// To avoid a possible memory bloat issues when working with very large JavaScript projects, there is
+    /// an upper limit to the amount of memory TypeScript will allocate. Turning this flag on will remove
+    /// the limit.
+    disable_size_limit: Option<bool>,
+    /// When working with composite TypeScript projects, this option provides a way to declare that you do
+    /// not want a project to be included when using features like find all references or jump to definition
+    /// in an editor.
+    ///
+    /// This flag is something you can use to increase responsiveness in large composite projects.
+    disable_solution_searching: Option<bool>,
+    /// When working with composite TypeScript projects, this option provides a way to go back to the pre-3.7
+    /// behavior where d.ts files were used to as the boundaries between modules. In 3.7 the source of truth
+    /// is now your TypeScript files.
+    disable_source_of_project_reference_redirect: Option<bool>,
+    /// Controls whether TypeScript will emit a byte order mark (BOM) when writing output files. Some
+    /// runtime environments require a BOM to correctly interpret a JavaScript files; others require that it
+    /// is not present. The default value of false is generally best unless you have a reason to change it.
+    #[serde(rename = "emitBOM")]
+    emit_bom: Option<bool>,
+    /// Only emit .d.ts files; do not emit .js files.
+    /// This setting is useful in two cases:
+    ///
+    ///     - You are using a transpiler other than TypeScript to generate your JavaScript.
+    ///     - You are using TypeScript to only generate d.ts files for your consumers.
+    emit_declaration_only: Option<bool>,
+    /// Print names of files which TypeScript sees as a part of your project and the reason they
+    /// are part of the compilation.
+    explain_files: Option<bool>,
+    /// You can use this flag to discover where TypeScript is spending it’s time when compiling. This is a tool
+    /// used for understanding the performance characteristics of your codebase overall.
+    ///
+    /// You can learn more about how to measure and understand the output in the performance section of the wiki.
+    extended_diagnostics: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
