@@ -424,7 +424,47 @@ pub struct CompilerOptions {
     /// copy of that dependency in your tree or investigate how to ensure there is only one copy by understanding the dependency
     /// resolution to fix the issue without additional tooling.
     skip_lib_check: Option<bool>,
+    /// Do not emit declarations for code that has an @internal annotation in it’s JSDoc comment. This is an internal compiler option;
+    /// use at your own risk, because the compiler does not check that the result is valid. If you are searching for a tool to
+    /// handle additional levels of visibility within your d.ts files, look at api-extractor.
     strip_internal: Option<bool>,
+    /// This disables reporting of excess property errors.
+    suppress_excess_property_errors: Option<bool>,
+    /// Turning suppressImplicitAnyIndexErrors on suppresses reporting the error about implicit anys when indexing into objects.
+    suppress_implicit_any_index_errors: Option<bool>,
+    /// When you are trying to debug why a module isn’t being included. You can set traceResolutions to true to have
+    /// TypeScript print information about its resolution process for each processed file.
+    trace_resolution: Option<bool>,
+    /// This flag is used as part of migrating to the upcoming standard version of class fields. TypeScript introduced class
+    /// fields many years before it was ratified in TC39. The latest version of the upcoming specification has a different
+    /// runtime behavior to TypeScript’s implementation but the same syntax.
+    use_define_for_class_fields: Option<bool>,
+    /// Whether to keep outdated console output in watch mode instead of clearing the screen every time a change happened.
+    preserve_watch_output: Option<bool>,
+    /// Stylize errors and messages using color and context, this is on by default — offers you a chance to have less terse,
+    /// single colored messages from the compiler.
+    pretty: Option<bool>,
+    /// When using file system events, this option specifies the polling strategy that gets used when the system runs out of native file watchers and/or doesn’t support native file watchers.
+    ///
+    ///    - fixedPollingInterval: Check every file for changes several times a second at a fixed interval.
+    ///    - priorityPollingInterval: Check every file for changes several times a second, but use heuristics to check certain types of files less frequently than others.
+    ///    - dynamicPriorityPolling: Use a dynamic queue where less-frequently modified files will be checked less often.
+    ///    - synchronousWatchDirectory: Disable deferred watching on directories. Deferred watching is useful when lots of file changes might occur at once (e.g. a change in node_modules from running npm install), but you might want to disable it with this flag for some less-common setups.
+    fallback_polling: Option<String>,
+    /// The strategy for how entire directory trees are watched under systems that lack recursive file-watching functionality.
+    ///
+    ///     - fixedPollingInterval: Check every directory for changes several times a second at a fixed interval.
+    ///     - dynamicPriorityPolling: Use a dynamic queue where less-frequently modified directories will be checked less often.
+    ///     - useFsEvents (the default): Attempt to use the operating system/file system’s native events for directory changes.
+    watch_directory: Option<String>,
+    /// The strategy for how individual files are watched.
+    ///
+    ///     - fixedPollingInterval: Check every file for changes several times a second at a fixed interval.
+    ///     - priorityPollingInterval: Check every file for changes several times a second, but use heuristics to check certain types of files less frequently than others.
+    ///     - dynamicPriorityPolling: Use a dynamic queue where less-frequently modified files will be checked less often.
+    ///     - useFsEvents (the default): Attempt to use the operating system/file system’s native events for file changes.
+    ///     - useFsEventsOnParentDirectory: Attempt to use the operating system/file system’s native events to listen for changes on a file’s parent directory
+    watch_file: Option<String>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
