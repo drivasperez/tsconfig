@@ -403,6 +403,28 @@ pub struct CompilerOptions {
     /// The out option computes the final file location in a way that is not predictable or consistent. This option is retained for backward compatibility only and is deprecated.
     #[deprecated]
     out: Option<bool>,
+    /// Do not erase const enum declarations in generated code. const enums provide a way to reduce the overall memory
+    /// footprint of your application at runtime by emitting the enum value instead of a reference.
+    preserve_const_enums: Option<bool>,
+    /// Use --jsxFactory instead. Specify the object invoked for createElement when targeting react for TSX files.
+    react_namespace: Option<String>,
+    /// Allows importing modules with a ‘.json’ extension, which is a common practice in node projects.
+    /// This includes generating a type for the import based on the static JSON shape.
+    resolve_json_module: Option<bool>,
+    /// Use --skipLibCheck instead. Skip type checking of default library declaration files.
+    skip_default_lib_check: Option<bool>,
+    /// Skip type checking of declaration files.
+    ///
+    /// This can save time during compilation at the expense of type-system accuracy. For example, two libraries could define
+    /// two copies of the same type in an inconsistent way. Rather than doing a full check of all d.ts files, TypeScript will
+    /// type check the code you specifically refer to in your app’s source code.
+    ///
+    /// A common case where you might think to use skipLibCheck is when there are two copies of a library’s types in your
+    /// node_modules. In these cases, you should consider using a feature like yarn’s resolutions to ensure there is only one
+    /// copy of that dependency in your tree or investigate how to ensure there is only one copy by understanding the dependency
+    /// resolution to fix the issue without additional tooling.
+    skip_lib_check: Option<bool>,
+    strip_internal: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
@@ -664,6 +686,12 @@ mod test {
     #[test]
     fn parse_default() {
         let json = include_str!("../test/default_tsconfig.json");
+        let _: TsConfig = parse_str(json).unwrap();
+    }
+
+    #[test]
+    fn ignores_invalid_fields() {
+        let json = r#"{"bleep": true, "compilerOptions": {"someNewUnsupportedProperty": false}}"#;
         let _: TsConfig = parse_str(json).unwrap();
     }
 }
