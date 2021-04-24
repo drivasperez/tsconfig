@@ -1,5 +1,6 @@
 [package]
-name = "parse_tsconfig"
+name = "tsconfig"
+description = "Parse .tsconfig configuration files for TypeScript"
 version = "0.1.0"
 authors = ["Daniel Rivas <daniel.rivas@hey.com>"]
 edition = "2018"

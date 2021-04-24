@@ -28,16 +28,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
-name = "parse_tsconfig"
-version = "0.1.0"
-dependencies = [
- "json_comments",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -118,6 +108,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "tsconfig"
+version = "0.1.0"
+dependencies = [
+ "json_comments",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
