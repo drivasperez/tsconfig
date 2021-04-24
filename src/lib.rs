@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::error::Error;
+use std::{collections::HashMap, io::Read};
 
 use json_comments::StripComments;
 use regex::Regex;
@@ -8,9 +8,10 @@ use serde::{Deserialize, Deserializer};
 pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
     // Remove trailing commas from objects.
     let re = Regex::new(r",(?P<valid>\s*})").unwrap();
-    let json = re.replace_all(json, "$valid");
-    let stripped = StripComments::new(json.as_bytes());
-    let r: TsConfig = serde_json::from_reader(stripped)?;
+    let mut stripped = String::with_capacity(json.len());
+    StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
+    let stripped = re.replace_all(&stripped, "$valid");
+    let r: TsConfig = serde_json::from_str(&stripped)?;
     Ok(r)
 }
 
@@ -405,7 +406,19 @@ mod test {
 
     #[test]
     fn parse_default() {
-        let json = include_str!("../test/default_tsconfig.json");
+        let json = include_str!("../test/tsconfig.default.json");
+        let _: TsConfig = parse_str(json).unwrap();
+    }
+
+    #[test]
+    fn parse_common_tsconfig() {
+        let json = include_str!("../test/tsconfig.common.json");
+        let _: TsConfig = parse_str(json).unwrap();
+    }
+
+    #[test]
+    fn parse_complete_tsconfig() {
+        let json = include_str!("../test/tsconfig.complete.json");
         let _: TsConfig = parse_str(json).unwrap();
     }
 
