@@ -1,9 +1,48 @@
-use std::error::Error;
 use std::{collections::HashMap, io::Read};
+use std::{
+    error::Error,
+    path::{Path, PathBuf},
+};
 
 use json_comments::StripComments;
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
+use serde_json::Value;
+
+fn merge(a: &mut Value, b: &Value) {
+    match (a, b) {
+        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {
+            for (k, v) in b {
+                merge(a.entry(k.clone()).or_insert(Value::Null), v);
+            }
+        }
+        (a, b) => {
+            *a = b.clone();
+        }
+    }
+}
+
+pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<Value, Box<dyn Error>> {
+    let s = std::fs::read_to_string(path)?;
+    let mut value = parse_to_value(&s)?;
+
+    if let Value::Array(values) = &value["extends"] {
+        let mut paths = Vec::new();
+        for value in values {
+            if let Value::String(s) = value {
+                let p = path.as_ref().join(s);
+                paths.push(p);
+            }
+        }
+
+        let parsed_values: Result<Vec<Value>, _> = paths.iter().map(parse_file).collect();
+        for v in &parsed_values? {
+            merge(&mut value, v);
+        }
+    }
+
+    Ok(value)
+}
 
 pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
     // Remove trailing commas from objects.
@@ -15,20 +54,30 @@ pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
     Ok(r)
 }
 
-#[derive(Deserialize, Debug)]
+fn parse_to_value(json: &str) -> Result<Value, Box<dyn Error>> {
+    // Remove trailing commas from objects.
+    let re = Regex::new(r",(?P<valid>\s*})").unwrap();
+    let mut stripped = String::with_capacity(json.len());
+    StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
+    let stripped = re.replace_all(&stripped, "$valid");
+    let r: Value = serde_json::from_str(&stripped)?;
+    Ok(r)
+}
+
+#[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum References {
     Bool(bool),
     References(Vec<Reference>),
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Reference {
     path: String,
     prepend: Option<bool>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub enum TypeAcquisition {
     Bool(bool),
     Object {
@@ -39,7 +88,7 @@ pub enum TypeAcquisition {
     },
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     exclude: Option<Vec<String>>,
@@ -52,7 +101,7 @@ pub struct TsConfig {
 }
 
 /// These options make up the bulk of TypeScript’s configuration and it covers how the language should work.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
     allow_js: Option<bool>,
@@ -442,5 +491,25 @@ mod test {
     }}"#;
         let cfg: TsConfig = parse_str(json).unwrap();
         assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
+    }
+
+    #[test]
+    fn merge_two_configs() {
+        let json_1 = r#"{"compilerOptions": {"jsx": "react", "noEmit": true,}}"#;
+        let json_2 = r#"{"compilerOptions": {"jsx": "preserve", "removeComments": true}}"#;
+
+        let mut value1: Value = parse_to_value(json_1).unwrap();
+        let value2: Value = parse_to_value(json_2).unwrap();
+
+        merge(&mut value1, &value2);
+
+        let value: TsConfig = serde_json::from_value(value1).unwrap();
+
+        assert_eq!(
+            value.clone().compiler_options.unwrap().jsx,
+            Some(Jsx::Preserve)
+        );
+        assert_eq!(value.clone().compiler_options.unwrap().no_emit, Some(true));
+        assert_eq!(value.compiler_options.unwrap().remove_comments, Some(true));
     }
 }
