@@ -3,7 +3,7 @@ use std::error::Error;
 
 use json_comments::StripComments;
 use regex::Regex;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 
 pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
     // Remove trailing commas from objects.
@@ -52,6 +52,7 @@ pub struct TsConfig {
 
 /// These options make up the bulk of TypeScript’s configuration and it covers how the language should work.
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
     allow_js: Option<bool>,
     check_js: Option<bool>,
@@ -73,7 +74,6 @@ pub struct CompilerOptions {
     source_map: Option<bool>,
     target: Option<Target>,
     ts_build_info_file: Option<String>,
-
     always_strict: Option<bool>,
     no_implicit_any: Option<bool>,
     no_implicit_this: Option<bool>,
@@ -84,7 +84,7 @@ pub struct CompilerOptions {
     strict_property_initialization: Option<bool>,
     allow_synthetic_default_imports: Option<bool>,
     allow_umd_global_access: Option<bool>,
-    base_url: Option<bool>,
+    base_url: Option<String>,
     es_module_interop: Option<bool>,
     module_resolution: Option<ModuleResolutionMode>,
     paths: Option<HashMap<String, Vec<String>>>,
@@ -141,7 +141,7 @@ pub struct CompilerOptions {
     no_resolve: Option<bool>,
     no_strict_generic_checks: Option<bool>,
     #[deprecated]
-    out: Option<bool>,
+    out: Option<String>,
     preserve_const_enums: Option<bool>,
     react_namespace: Option<String>,
     resolve_json_module: Option<bool>,
@@ -413,5 +413,21 @@ mod test {
     fn ignores_invalid_fields() {
         let json = r#"{"bleep": true, "compilerOptions": {"someNewUnsupportedProperty": false}}"#;
         let _: TsConfig = parse_str(json).unwrap();
+    }
+
+    #[test]
+    fn ignores_dangling_commas() {
+        let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true,}}"#;
+        let cfg: TsConfig = parse_str(json).unwrap();
+        assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
+
+        let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true, }}"#;
+        let cfg: TsConfig = parse_str(json).unwrap();
+        assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
+
+        let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true,
+    }}"#;
+        let cfg: TsConfig = parse_str(json).unwrap();
+        assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
     }
 }
