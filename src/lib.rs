@@ -1,8 +1,5 @@
 use std::{collections::HashMap, io::Read};
-use std::{
-    error::Error,
-    path::{Path, PathBuf},
-};
+use std::{error::Error, path::Path};
 
 use json_comments::StripComments;
 use regex::Regex;
@@ -17,7 +14,9 @@ fn merge(a: &mut Value, b: &Value) {
             }
         }
         (a, b) => {
-            *a = b.clone();
+            if let Value::Null = a {
+                *a = b.clone();
+            }
         }
     }
 }
@@ -26,19 +25,14 @@ pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<Value, Box<dyn Error>> {
     let s = std::fs::read_to_string(path)?;
     let mut value = parse_to_value(&s)?;
 
-    if let Value::Array(values) = &value["extends"] {
-        let mut paths = Vec::new();
-        for value in values {
-            if let Value::String(s) = value {
-                let p = path.as_ref().join(s);
-                paths.push(p);
-            }
-        }
-
-        let parsed_values: Result<Vec<Value>, _> = paths.iter().map(parse_file).collect();
-        for v in &parsed_values? {
-            merge(&mut value, v);
-        }
+    if let Value::String(s) = &value["extends"] {
+        let extends_path = path
+            .as_ref()
+            .parent()
+            .unwrap_or_else(|| Path::new(""))
+            .join(s);
+        let extends_value = parse_file(&extends_path)?;
+        merge(&mut value, &extends_value);
     }
 
     Ok(value)
@@ -371,7 +365,7 @@ impl<'de> Deserialize<'de> for Lib {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Module {
     CommonJs,
     Es6,
@@ -507,9 +501,55 @@ mod test {
 
         assert_eq!(
             value.clone().compiler_options.unwrap().jsx,
-            Some(Jsx::Preserve)
+            Some(Jsx::React)
         );
         assert_eq!(value.clone().compiler_options.unwrap().no_emit, Some(true));
         assert_eq!(value.compiler_options.unwrap().remove_comments, Some(true));
+    }
+
+    #[test]
+    fn parse_basic_file() {
+        let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("test/tsconfig.default.json");
+        let value = parse_file(&path).unwrap();
+
+        let config: TsConfig = serde_json::from_value(value).unwrap();
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().target,
+            Some(Target::Es5)
+        );
+        assert_eq!(
+            config.compiler_options.clone().unwrap().module,
+            Some(Module::CommonJs)
+        );
+        assert_eq!(config.compiler_options.unwrap().strict, Some(true));
+    }
+
+    #[test]
+    fn parse_inheriting_file() {
+        let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("test/tsconfig.inherits.json");
+        let value = parse_file(&path).unwrap();
+        let config: TsConfig = serde_json::from_value(value).unwrap();
+
+        assert_eq!(
+            config
+                .compiler_options
+                .clone()
+                .unwrap()
+                .use_define_for_class_fields,
+            Some(false)
+        );
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().declaration,
+            Some(true)
+        );
+
+        assert_eq!(
+            config.compiler_options.unwrap().trace_resolution,
+            Some(false)
+        );
     }
 }
