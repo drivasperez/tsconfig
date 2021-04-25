@@ -17,3 +17,8 @@ let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
     .join("test/tsconfig.default.json");
 let config = TsConfig::parse_file(&path).unwrap();
 ```
+
+## Links
+
+- Documentation [can be found here](https://docs.rs/tsconfig)
+- [crates.io package](https://crates.io/crates/tsconfig)
