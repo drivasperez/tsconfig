@@ -6,16 +6,16 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
-fn merge(a: &mut Value, b: &Value) {
+fn merge(a: &mut Value, b: Value) {
     match (a, b) {
-        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {
+        (&mut Value::Object(ref mut a), Value::Object(b)) => {
             for (k, v) in b {
-                merge(a.entry(k.clone()).or_insert(Value::Null), v);
+                merge(a.entry(k).or_insert(Value::Null), v);
             }
         }
         (a, b) => {
             if let Value::Null = a {
-                *a = b.clone();
+                *a = b;
             }
         }
     }
@@ -32,7 +32,7 @@ pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<Value, Box<dyn Error>> {
             .unwrap_or_else(|| Path::new(""))
             .join(s);
         let extends_value = parse_file(&extends_path)?;
-        merge(&mut value, &extends_value);
+        merge(&mut value, extends_value);
     }
 
     Ok(value)
@@ -495,7 +495,7 @@ mod test {
         let mut value1: Value = parse_to_value(json_1).unwrap();
         let value2: Value = parse_to_value(json_2).unwrap();
 
-        merge(&mut value1, &value2);
+        merge(&mut value1, value2);
 
         let value: TsConfig = serde_json::from_value(value1).unwrap();
 
