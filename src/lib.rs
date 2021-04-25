@@ -1,10 +1,52 @@
+use std::path::Path;
 use std::{collections::HashMap, io::Read};
-use std::{error::Error, path::Path};
 
 use json_comments::StripComments;
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+
+use thiserror::Error;
+
+pub type Result<T, E = ConfigError> = std::result::Result<T, E>;
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Could not parse configuration file")]
+    ParseError(#[from] serde_json::Error),
+    #[error("Could not read file")]
+    CouldNotFindFile(#[from] std::io::Error),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TsConfig {
+    exclude: Option<Vec<String>>,
+    extends: Option<String>,
+    files: Option<Vec<String>>,
+    include: Option<Vec<String>>,
+    references: Option<References>,
+    type_acquisition: Option<TypeAcquisition>,
+    compiler_options: Option<CompilerOptions>,
+}
+
+impl TsConfig {
+    pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<TsConfig> {
+        let values = parse_file_to_value(path)?;
+        let cfg = serde_json::from_value(values)?;
+        Ok(cfg)
+    }
+
+    pub fn parse_str(json: &str) -> Result<TsConfig> {
+        // Remove trailing commas from objects.
+        let re = Regex::new(r",(?P<valid>\s*})").unwrap();
+        let mut stripped = String::with_capacity(json.len());
+        StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
+        let stripped = re.replace_all(&stripped, "$valid");
+        let r: TsConfig = serde_json::from_str(&stripped)?;
+        Ok(r)
+    }
+}
 
 fn merge(a: &mut Value, b: Value) {
     match (a, b) {
@@ -21,7 +63,7 @@ fn merge(a: &mut Value, b: Value) {
     }
 }
 
-pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<Value, Box<dyn Error>> {
+pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
     let s = std::fs::read_to_string(path)?;
     let mut value = parse_to_value(&s)?;
 
@@ -31,24 +73,14 @@ pub fn parse_file<P: AsRef<Path>>(path: &P) -> Result<Value, Box<dyn Error>> {
             .parent()
             .unwrap_or_else(|| Path::new(""))
             .join(s);
-        let extends_value = parse_file(&extends_path)?;
+        let extends_value = parse_file_to_value(&extends_path)?;
         merge(&mut value, extends_value);
     }
 
     Ok(value)
 }
 
-pub fn parse_str(json: &str) -> Result<TsConfig, Box<dyn Error>> {
-    // Remove trailing commas from objects.
-    let re = Regex::new(r",(?P<valid>\s*})").unwrap();
-    let mut stripped = String::with_capacity(json.len());
-    StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
-    let stripped = re.replace_all(&stripped, "$valid");
-    let r: TsConfig = serde_json::from_str(&stripped)?;
-    Ok(r)
-}
-
-fn parse_to_value(json: &str) -> Result<Value, Box<dyn Error>> {
+pub fn parse_to_value(json: &str) -> Result<Value> {
     // Remove trailing commas from objects.
     let re = Regex::new(r",(?P<valid>\s*})").unwrap();
     let mut stripped = String::with_capacity(json.len());
@@ -80,18 +112,6 @@ pub enum TypeAcquisition {
         exclude: Option<Vec<String>>,
         disable_filename_based_type_acquisition: Option<bool>,
     },
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct TsConfig {
-    exclude: Option<Vec<String>>,
-    extends: Option<String>,
-    files: Option<Vec<String>>,
-    include: Option<Vec<String>>,
-    references: Option<References>,
-    type_acquisition: Option<TypeAcquisition>,
-    compiler_options: Option<CompilerOptions>,
 }
 
 /// These options make up the bulk of TypeScript’s configuration and it covers how the language should work.
@@ -411,7 +431,7 @@ mod test {
     fn parse_jsx() {
         let json = r#"{"compilerOptions": {"jsx": "react-jsx"}}"#;
 
-        let config: TsConfig = parse_str(json).unwrap();
+        let config = TsConfig::parse_str(json).unwrap();
         assert_eq!(config.compiler_options.unwrap().jsx, Some(Jsx::ReactJsx));
     }
 
@@ -429,7 +449,7 @@ mod test {
         
         "#;
 
-        let config: TsConfig = parse_str(json).unwrap();
+        let config = TsConfig::parse_str(json).unwrap();
         assert_eq!(
             config
                 .compiler_options
@@ -443,47 +463,47 @@ mod test {
 
     #[test]
     fn parse_empty() {
-        let _: TsConfig = parse_str("{}").unwrap();
-        let _: TsConfig = parse_str(r#"{"compilerOptions": {}}"#).unwrap();
+        TsConfig::parse_str("{}").unwrap();
+        TsConfig::parse_str(r#"{"compilerOptions": {}}"#).unwrap();
     }
 
     #[test]
     fn parse_default() {
         let json = include_str!("../test/tsconfig.default.json");
-        let _: TsConfig = parse_str(json).unwrap();
+        TsConfig::parse_str(json).unwrap();
     }
 
     #[test]
     fn parse_common_tsconfig() {
         let json = include_str!("../test/tsconfig.common.json");
-        let _: TsConfig = parse_str(json).unwrap();
+        TsConfig::parse_str(json).unwrap();
     }
 
     #[test]
     fn parse_complete_tsconfig() {
         let json = include_str!("../test/tsconfig.complete.json");
-        let _: TsConfig = parse_str(json).unwrap();
+        TsConfig::parse_str(json).unwrap();
     }
 
     #[test]
     fn ignores_invalid_fields() {
         let json = r#"{"bleep": true, "compilerOptions": {"someNewUnsupportedProperty": false}}"#;
-        let _: TsConfig = parse_str(json).unwrap();
+        TsConfig::parse_str(json).unwrap();
     }
 
     #[test]
     fn ignores_dangling_commas() {
         let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true,}}"#;
-        let cfg: TsConfig = parse_str(json).unwrap();
+        let cfg = TsConfig::parse_str(json).unwrap();
         assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
 
         let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true, }}"#;
-        let cfg: TsConfig = parse_str(json).unwrap();
+        let cfg = TsConfig::parse_str(json).unwrap();
         assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
 
         let json = r#"{"compilerOptions": {"noImplicitAny": false,"explainFiles": true,
     }}"#;
-        let cfg: TsConfig = parse_str(json).unwrap();
+        let cfg = TsConfig::parse_str(json).unwrap();
         assert_eq!(cfg.compiler_options.unwrap().explain_files.unwrap(), true);
     }
 
@@ -511,9 +531,7 @@ mod test {
     fn parse_basic_file() {
         let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
             .join("test/tsconfig.default.json");
-        let value = parse_file(&path).unwrap();
-
-        let config: TsConfig = serde_json::from_value(value).unwrap();
+        let config = TsConfig::parse_file(&path).unwrap();
 
         assert_eq!(
             config.compiler_options.clone().unwrap().target,
@@ -530,8 +548,7 @@ mod test {
     fn parse_inheriting_file() {
         let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
             .join("test/tsconfig.inherits.json");
-        let value = parse_file(&path).unwrap();
-        let config: TsConfig = serde_json::from_value(value).unwrap();
+        let config = TsConfig::parse_file(&path).unwrap();
 
         assert_eq!(
             config
@@ -557,8 +574,7 @@ mod test {
     fn parse_inheritance_chain() {
         let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
             .join("test/a/tsconfig.inherits_again.json");
-        let value = parse_file(&path).unwrap();
-        let config: TsConfig = serde_json::from_value(value).unwrap();
+        let config = TsConfig::parse_file(&path).unwrap();
 
         assert_eq!(
             config
