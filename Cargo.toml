@@ -6,7 +6,6 @@ authors = ["Daniel Rivas <daniel.rivas@hey.com>"]
 edition = "2018"
 homepage = "https://github.com/drivasperez/tsconfig"
 repository = "https://github.com/drivasperez/tsconfig"
-license = "MIT"
 keywords = ["typescript", "tsconfig", "configuration", "config"]
 categories = ["config"]
 readme = "README.md"

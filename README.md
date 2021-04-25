@@ -1,3 +1,5 @@
+[![Rust](https://github.com/drivasperez/tsconfig/actions/workflows/rust.yml/badge.svg)](https://github.com/drivasperez/tsconfig/actions/workflows/rust.yml)
+
 # tsconfig
 
 A Rust crate for parsing TypeScript's TSConfig files into a Rust struct.
