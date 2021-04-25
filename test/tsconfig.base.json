@@ -2,5 +2,6 @@
     "compilerOptions": {
         "useDefineForClassFields": false,
         "traceResolution": true,
+        "jsx": "preserve",
     } 
 }

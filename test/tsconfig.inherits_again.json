@@ -1,8 +1,9 @@
+
 {
-    "extends": "tsconfig.base.json",
+    "extends": "tsconfig.inherits.json",
     "compilerOptions": {
         "traceResolution": false,
         "declaration": true,
-        "jsx": "react-jsxdev",
+        "jsx": "react-native"
     }
 }

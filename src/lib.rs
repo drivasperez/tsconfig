@@ -552,4 +552,33 @@ mod test {
             Some(false)
         );
     }
+
+    #[test]
+    fn parse_inheritance_chain() {
+        let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("test/tsconfig.inherits_again.json");
+        let value = parse_file(&path).unwrap();
+        let config: TsConfig = serde_json::from_value(value).unwrap();
+
+        assert_eq!(
+            config
+                .compiler_options
+                .clone()
+                .unwrap()
+                .use_define_for_class_fields,
+            Some(false)
+        );
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().declaration,
+            Some(true)
+        );
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().trace_resolution,
+            Some(false)
+        );
+
+        assert_eq!(config.compiler_options.unwrap().jsx, Some(Jsx::ReactNative));
+    }
 }
