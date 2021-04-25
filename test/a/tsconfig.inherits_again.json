@@ -1,6 +1,6 @@
 
 {
-    "extends": "tsconfig.inherits.json",
+    "extends": "../tsconfig.inherits.json",
     "compilerOptions": {
         "traceResolution": false,
         "declaration": true,

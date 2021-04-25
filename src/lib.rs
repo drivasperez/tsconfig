@@ -556,7 +556,7 @@ mod test {
     #[test]
     fn parse_inheritance_chain() {
         let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
-            .join("test/tsconfig.inherits_again.json");
+            .join("test/a/tsconfig.inherits_again.json");
         let value = parse_file(&path).unwrap();
         let config: TsConfig = serde_json::from_value(value).unwrap();
 
