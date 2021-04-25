@@ -1,9 +1,21 @@
-//! A crate for parsing TypeScript's TSConfig files
+//! A Rust crate for parsing TypeScript's TSConfig files into a struct.
 //!
 //! A TSConfig file in a directory indicates that the directory is the root of a TypeScript or JavaScript project.
 //! The TSConfig file can be either a tsconfig.json or jsconfig.json; both have the same behavior and the same set of config variables.
 //!
 //! One TSConfig can inherit fields from another if it is specified in the 'extends' field.
+//!
+//! ## Example usage
+//!
+//! ```
+//! use tsconfig::TsConfig;
+//! use std::path::Path;
+//!
+//! let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+//!     .join("test/tsconfig.default.json");
+//! let config = TsConfig::parse_file(&path).unwrap();
+//!
+//! ```
 
 use std::path::Path;
 use std::{collections::HashMap, io::Read};
