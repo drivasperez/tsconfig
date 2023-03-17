@@ -203,11 +203,22 @@ pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
     let mut value = parse_to_value(&s)?;
 
     if let Value::String(s) = &value["extends"] {
-        let extends_path = path
+        // This may or may not have a `.json` extension
+        let extends_path_unchecked = path
             .as_ref()
             .parent()
             .unwrap_or_else(|| Path::new(""))
             .join(s);
+        let extends_path_str = extends_path_unchecked.to_str().unwrap();
+        // Append the extension if it doesn't already have it
+        let extends_path = match extends_path_str.contains(&".json") {
+            true => extends_path_unchecked,
+            false => {
+                let with_ext = extends_path_str.to_string() + ".json";
+
+                Path::new(with_ext.as_str()).to_path_buf()
+            }
+        };
         let extends_value = parse_file_to_value(&extends_path)?;
         merge(&mut value, extends_value);
     }
