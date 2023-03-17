@@ -999,4 +999,23 @@ mod test {
 
         assert_eq!(config.compiler_options.unwrap().jsx, Some(Jsx::ReactNative));
     }
+
+    #[test]
+    fn parse_no_extension_file() {
+        let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("test/tsconfig.noextension.json");
+        let config = TsConfig::parse_file(&path).unwrap();
+
+        assert_eq!(config.compiler_options.clone().unwrap().strict, Some(true));
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().declaration,
+            Some(true)
+        );
+
+        assert_eq!(
+            config.compiler_options.unwrap().trace_resolution,
+            Some(false)
+        );
+    }
 }
