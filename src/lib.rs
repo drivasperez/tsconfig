@@ -30,12 +30,16 @@ use thiserror::Error;
 pub type Result<T, E = ConfigError> = std::result::Result<T, E>;
 
 /// Errors when parsing TsConfig files.
+/// This is non-exhaustive, and may be extended in the future.
+#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("Could not parse configuration file")]
     ParseError(#[from] serde_json::Error),
     #[error("Could not read file")]
     CouldNotFindFile(#[from] std::io::Error),
+    #[error("Could not convert path into UTF-8")]
+    InvalidPath,
 }
 
 /// The main struct representing a parsed .tsconfig file.
@@ -209,15 +213,17 @@ pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
             .parent()
             .unwrap_or_else(|| Path::new(""))
             .join(s);
-        let extends_path_str = extends_path_unchecked.to_str().unwrap();
-        // Append the extension if it doesn't already have it
-        let extends_path = match extends_path_str.contains(&".json") {
-            true => extends_path_unchecked,
-            false => {
-                let with_ext = extends_path_str.to_string() + ".json";
 
-                Path::new(with_ext.as_str()).to_path_buf()
-            }
+        let extends_path_str = extends_path_unchecked
+            .to_str()
+            .ok_or(ConfigError::InvalidPath)?;
+
+        // Append the extension if it doesn't already have it
+        let extends_path = if extends_path_str.ends_with(&".json") {
+            extends_path_unchecked
+        } else {
+            let with_ext = extends_path_str.to_string() + ".json";
+            Path::new(with_ext.as_str()).to_path_buf()
         };
         let extends_value = parse_file_to_value(&extends_path)?;
         merge(&mut value, extends_value);
