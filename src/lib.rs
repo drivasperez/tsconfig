@@ -38,8 +38,8 @@ pub enum ConfigError {
     ParseError(#[from] serde_json::Error),
     #[error("Could not read file")]
     CouldNotFindFile(#[from] std::io::Error),
-    #[error("Could not convert path into UTF-8")]
-    InvalidPath,
+    #[error("Could not convert path into UTF-8: {0}")]
+    InvalidPath(String),
 }
 
 /// The main struct representing a parsed .tsconfig file.
@@ -214,9 +214,9 @@ pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
             .unwrap_or_else(|| Path::new(""))
             .join(s);
 
-        let extends_path_str = extends_path_unchecked
-            .to_str()
-            .ok_or(ConfigError::InvalidPath)?;
+        let extends_path_str = extends_path_unchecked.to_str().ok_or_else(|| {
+            ConfigError::InvalidPath(extends_path_unchecked.to_string_lossy().to_string())
+        })?;
 
         // Append the extension if it doesn't already have it
         let extends_path = if extends_path_str.ends_with(&".json") {
