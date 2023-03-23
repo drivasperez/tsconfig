@@ -30,12 +30,16 @@ use thiserror::Error;
 pub type Result<T, E = ConfigError> = std::result::Result<T, E>;
 
 /// Errors when parsing TsConfig files.
+/// This is non-exhaustive, and may be extended in the future.
+#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("Could not parse configuration file")]
     ParseError(#[from] serde_json::Error),
     #[error("Could not read file")]
     CouldNotFindFile(#[from] std::io::Error),
+    #[error("Could not convert path into UTF-8: {0}")]
+    InvalidPath(String),
 }
 
 /// The main struct representing a parsed .tsconfig file.
@@ -203,11 +207,24 @@ pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
     let mut value = parse_to_value(&s)?;
 
     if let Value::String(s) = &value["extends"] {
-        let extends_path = path
+        // This may or may not have a `.json` extension
+        let extends_path_unchecked = path
             .as_ref()
             .parent()
             .unwrap_or_else(|| Path::new(""))
             .join(s);
+
+        let extends_path_str = extends_path_unchecked.to_str().ok_or_else(|| {
+            ConfigError::InvalidPath(extends_path_unchecked.to_string_lossy().to_string())
+        })?;
+
+        // Append the extension if it doesn't already have it
+        let extends_path = if extends_path_str.ends_with(&".json") {
+            extends_path_unchecked
+        } else {
+            let with_ext = extends_path_str.to_string() + ".json";
+            Path::new(with_ext.as_str()).to_path_buf()
+        };
         let extends_value = parse_file_to_value(&extends_path)?;
         merge(&mut value, extends_value);
     }
@@ -987,5 +1004,24 @@ mod test {
         );
 
         assert_eq!(config.compiler_options.unwrap().jsx, Some(Jsx::ReactNative));
+    }
+
+    #[test]
+    fn parse_no_extension_file() {
+        let path = Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("test/tsconfig.noextension.json");
+        let config = TsConfig::parse_file(&path).unwrap();
+
+        assert_eq!(config.compiler_options.clone().unwrap().strict, Some(true));
+
+        assert_eq!(
+            config.compiler_options.clone().unwrap().declaration,
+            Some(true)
+        );
+
+        assert_eq!(
+            config.compiler_options.unwrap().trace_resolution,
+            Some(false)
+        );
     }
 }
