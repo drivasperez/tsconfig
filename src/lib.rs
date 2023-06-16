@@ -461,8 +461,16 @@ pub struct CompilerOptions {
 pub enum ModuleResolutionMode {
     #[serde(rename = "node")]
     Node,
+    #[serde(rename = "node10")]
+    Node10,
+    #[serde(rename = "node16")]
+    Node16,
+    #[serde(rename = "nodenext")]
+    NodeNext,
     #[serde(rename = "classic")]
     Classic,
+    #[serde(rename = "bundler")]
+    Bundler,
 }
 
 /// Controls how JSX constructs are emitted in JavaScript files. This only affects output of JS files that started in .tsx files.
