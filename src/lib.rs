@@ -459,10 +459,16 @@ pub struct CompilerOptions {
 /// There is a handbook reference page [on Module Resolution](https://www.typescriptlang.org/docs/handbook/module-resolution.html).
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone)]
 pub enum ModuleResolutionMode {
-    #[serde(rename = "node")]
-    Node,
-    #[serde(rename = "classic")]
+    #[serde(rename = "classic", alias = "Classic")]
     Classic,
+    #[serde(rename = "node", alias = "Node", alias = "node10", alias = "Node10")]
+    Node,
+    #[serde(rename = "node16", alias = "Node16")]
+    Node16,
+    #[serde(rename = "nodenext", alias = "NodeNext")]
+    NodeNext,
+    #[serde(rename = "bundler", alias = "Bundler")]
+    Bundler,
 }
 
 /// Controls how JSX constructs are emitted in JavaScript files. This only affects output of JS files that started in .tsx files.
