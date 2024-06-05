@@ -360,6 +360,7 @@ pub struct CompilerOptions {
     pub jsx: Option<Jsx>,
     pub lib: Option<Vec<Lib>>,
     pub module: Option<Module>,
+    pub module_detection: Option<ModuleDetectionMode>,
     pub no_emit: Option<bool>,
     pub out_dir: Option<String>,
     pub out_file: Option<String>,
@@ -451,6 +452,22 @@ pub struct CompilerOptions {
     pub fallback_polling: Option<String>,
     pub watch_directory: Option<String>,
     pub watch_file: Option<String>,
+}
+
+/// Module detection mode
+///
+/// This setting controls how TypeScript determines whether a file is a script or a module.
+/// These choices include:
+///   - "auto" (default) - TypeScript will not only look for import and export statements, but it will also check whether the "type" field in a package.json is set to "module" when running with module: nodenext or node16, and check whether the current file is a JSX file when running under jsx: react-jsx.
+///   - "legacy" - The same behavior as 4.6 and prior, usings import and export statements to determine whether a file is a module.
+///   - "force" - Ensures that every non-declaration file is treated as a module.
+#[derive(Deserialize, Debug, PartialEq, Copy, Clone, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleDetectionMode {
+	#[default]
+	Auto,
+	Legacy,
+	Force,
 }
 
 /// Module resolution mode
