@@ -82,6 +82,7 @@
     "removeComments": false, // Remove all comments except copy-right header comments beginning with //!
     "experimentalDecorators": true, // Enables experimental support for ES7 decorators.
     "emitDecoratorMetadata": true, // Enables experimental support for emitting type metadata for decorators.
+    "moduleDetection": "auto", // Controls how TypeScript determines whether a file is a script or a module.
 
     // Source map options
     "sourceMap": false, // Generates corresponding '.map' file.
