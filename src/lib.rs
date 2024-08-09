@@ -17,7 +17,7 @@
 //!
 //! ```
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{collections::HashMap, io::Read};
 
 use json_comments::StripComments;
@@ -36,8 +36,10 @@ pub type Result<T, E = ConfigError> = std::result::Result<T, E>;
 pub enum ConfigError {
     #[error("Could not parse configuration file")]
     ParseError(#[from] serde_json::Error),
-    #[error("Could not read file")]
-    CouldNotFindFile(#[from] std::io::Error),
+    #[error("Could not read file {0}")]
+    CouldNotReadFile(PathBuf, std::io::Error),
+    #[error("Invalid JSON data")]
+    InvalidJsonData(std::io::Error),
     #[error("Could not convert path into UTF-8: {0}")]
     InvalidPath(String),
 }
@@ -133,7 +135,9 @@ impl TsConfig {
         // Remove trailing commas from objects.
         let re = Regex::new(r",(?P<valid>\s*})").unwrap();
         let mut stripped = String::with_capacity(json.len());
-        StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
+        StripComments::new(json.as_bytes())
+            .read_to_string(&mut stripped)
+            .map_err(|err| ConfigError::InvalidJsonData(err))?;
         let stripped = re.replace_all(&stripped, "$valid");
         let r: TsConfig = serde_json::from_str(&stripped)?;
         Ok(r)
@@ -203,7 +207,8 @@ fn merge(a: &mut Value, b: Value) {
 ///
 /// ```
 pub fn parse_file_to_value<P: AsRef<Path>>(path: &P) -> Result<Value> {
-    let s = std::fs::read_to_string(path)?;
+    let s = std::fs::read_to_string(path)
+        .map_err(|err| ConfigError::CouldNotReadFile(path.as_ref().into(), err))?;
     let mut value = parse_to_value(&s)?;
 
     if let Value::String(s) = &value["extends"] {
@@ -252,7 +257,9 @@ pub fn parse_to_value(json: &str) -> Result<Value> {
     // Remove trailing commas from objects.
     let re = Regex::new(r",(?P<valid>\s*})").unwrap();
     let mut stripped = String::with_capacity(json.len());
-    StripComments::new(json.as_bytes()).read_to_string(&mut stripped)?;
+    StripComments::new(json.as_bytes())
+        .read_to_string(&mut stripped)
+        .map_err(|err| ConfigError::InvalidJsonData(err))?;
     let stripped = re.replace_all(&stripped, "$valid");
     let r: Value = serde_json::from_str(&stripped)?;
     Ok(r)
