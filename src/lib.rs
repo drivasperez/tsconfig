@@ -364,6 +364,7 @@ pub struct CompilerOptions {
     pub import_helpers: Option<bool>,
     pub incremental: Option<bool>,
     pub isolated_modules: Option<bool>,
+    pub isolated_declarations: Option<bool>,
     pub jsx: Option<Jsx>,
     pub lib: Option<Vec<Lib>>,
     pub module: Option<Module>,
