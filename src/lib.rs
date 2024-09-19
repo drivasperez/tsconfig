@@ -364,6 +364,7 @@ pub struct CompilerOptions {
     pub import_helpers: Option<bool>,
     pub incremental: Option<bool>,
     pub isolated_modules: Option<bool>,
+    pub isolated_declarations: Option<bool>,
     pub jsx: Option<Jsx>,
     pub lib: Option<Vec<Lib>>,
     pub module: Option<Module>,
@@ -471,10 +472,10 @@ pub struct CompilerOptions {
 #[derive(Deserialize, Debug, PartialEq, Copy, Clone, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ModuleDetectionMode {
-	#[default]
-	Auto,
-	Legacy,
-	Force,
+    #[default]
+    Auto,
+    Legacy,
+    Force,
 }
 
 /// Module resolution mode
@@ -580,6 +581,9 @@ pub enum Target {
     Es2018,
     Es2019,
     Es2020,
+    Es2021,
+    Es2022,
+    Es2023,
     EsNext,
     Other(String),
 }
@@ -601,6 +605,9 @@ impl<'de> Deserialize<'de> for Target {
             "ES2018" => Target::Es2018,
             "ES2019" => Target::Es2019,
             "ES2020" => Target::Es2020,
+            "ES2021" => Target::Es2021,
+            "ES2022" => Target::Es2022,
+            "ES2023" => Target::Es2023,
             "ESNEXT" => Target::EsNext,
             other => Target::Other(other.to_string()),
         };
@@ -630,6 +637,9 @@ pub enum Lib {
     Es2018,
     Es2019,
     Es2020,
+    Es2021,
+    Es2022,
+    Es2023,
     EsNext,
     Dom,
     WebWorker,
@@ -683,6 +693,9 @@ impl<'de> Deserialize<'de> for Lib {
             "ES2018" => Lib::Es2018,
             "ES2019" => Lib::Es2019,
             "ES2020" => Lib::Es2020,
+            "ES2021" => Lib::Es2021,
+            "ES2022" => Lib::Es2022,
+            "ES2023" => Lib::Es2023,
             "ESNext" => Lib::EsNext,
             "DOM" => Lib::Dom,
             "WEBWORKER" => Lib::WebWorker,
